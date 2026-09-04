@@ -362,9 +362,19 @@
   }
 
   :focus-visible{ outline:2px solid var(--wine); outline-offset:2px; }
+
+  .skip-link{
+    position:absolute; top:-100%; left:16px; z-index:100;
+    background:var(--ink); color:var(--cream);
+    padding:12px 20px; border-radius:var(--radius);
+    text-decoration:none; font-size:14px; font-weight:600;
+    transition:top .15s ease;
+  }
+  .skip-link:focus{ top:16px; }
 </style>
 </head>
 <body>
+<a href="#top" class="skip-link">Hoppa till innehållet</a>
 
 <header>
   <div class="wrap nav">
