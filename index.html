@@ -434,6 +434,12 @@
   .order-summary-total{ display:flex; justify-content:space-between; font-weight:600; padding-top:8px; margin-top:4px; border-top:1px solid var(--line); }
 
   #checkoutView .btn{ width:100%; justify-content:center; }
+  .confirm-thanks{ font-family:'Playfair Display', serif; font-size:1.25rem; line-height:1.35; margin-bottom:20px; }
+  .confirm-quirk{ background:var(--paper); border-radius:var(--radius); padding:18px 20px; margin:22px 0; font-size:14.5px; color:var(--ink-soft); }
+  .confirm-quirk p{ margin:0 0 .8em; }
+  .confirm-quirk p:last-child{ margin-bottom:0; }
+  .confirm-quirk strong{ color:var(--ink); }
+  #confirmView .btn{ width:100%; justify-content:center; }
   .btn:disabled{ opacity:.55; cursor:not-allowed; }
   .btn-primary:disabled:hover{ background:var(--ink); }
   .cart-lock{ color:var(--wine); font-weight:500; }
@@ -668,6 +674,20 @@
         <button type="submit" class="btn btn-primary" id="orderSubmitBtn">Skicka beställning</button>
         <p id="orderStatus" class="form-status" role="status" aria-live="polite"></p>
       </form>
+    </div>
+    <div class="confirm-view" id="confirmView" hidden>
+      <div class="cart-drawer-head">
+        <h2>Beställning mottagen</h2>
+        <button type="button" class="drawer-close" id="confirmCloseBtn" aria-label="Stäng">&times;</button>
+      </div>
+      <p class="confirm-thanks">Tack, <span id="confirmName"></span>! Din beställning har kommit fram till oss.</p>
+      <div class="order-summary" id="confirmSummary"></div>
+      <div class="order-summary-total" id="confirmTotal"></div>
+      <div class="confirm-quirk">
+        <p><strong>Det kan ta en liten stund.</strong> Just nu sitter vi med lim på fingrarna och korkar i håret, och varje bricka får den tid den behöver. Vi mejlar betalningsinstruktioner till <span id="confirmEmail"></span> så fort limmet torkat och en hand blivit ledig.</p>
+        <p>Hör vi inte av oss på ett tag: titta i skräpposten. Ibland gömmer sig vårt mejl där.</p>
+      </div>
+      <button type="button" class="btn btn-primary" id="confirmDoneBtn">Tillbaka till sidan</button>
     </div>
 
   </div>
@@ -1081,6 +1101,7 @@
   const cartDrawer = document.getElementById('cartDrawer');
   const cartView = document.getElementById('cartView');
   const checkoutView = document.getElementById('checkoutView');
+  const confirmView = document.getElementById('confirmView');
   const cartItemsEl = document.getElementById('cartItems');
   const cartEmptyEl = document.getElementById('cartEmpty');
   const cartFootEl = document.getElementById('cartFoot');
@@ -1239,11 +1260,23 @@
   function showCartView(){
     cartView.hidden = false;
     checkoutView.hidden = true;
+    confirmView.hidden = true;
   }
   function showCheckoutView(){
     renderOrderSummary();
     cartView.hidden = true;
     checkoutView.hidden = false;
+    confirmView.hidden = true;
+  }
+  function showConfirmView(name, email){
+    document.getElementById('confirmName').textContent = name;
+    document.getElementById('confirmEmail').textContent = email;
+    document.getElementById('confirmSummary').innerHTML = orderSummaryEl.innerHTML;
+    document.getElementById('confirmTotal').innerHTML = orderSummaryTotalEl.innerHTML;
+    cartView.hidden = true;
+    checkoutView.hidden = true;
+    confirmView.hidden = false;
+    cartDrawer.querySelector('.cart-drawer-inner').scrollTop = 0;
   }
 
   function openCart(){
@@ -1274,6 +1307,8 @@
   document.getElementById('checkoutCloseBtn').addEventListener('click', closeCart);
   document.getElementById('cartEmptyCloseBtn').addEventListener('click', closeCart);
   document.getElementById('checkoutBackBtn').addEventListener('click', showCartView);
+  document.getElementById('confirmCloseBtn').addEventListener('click', closeCart);
+  document.getElementById('confirmDoneBtn').addEventListener('click', closeCart);
   document.getElementById('goToCheckoutBtn').addEventListener('click', function(){
     if (ordersOpen()) showCheckoutView();
   });
@@ -1370,18 +1405,15 @@
       const result = await response.json();
 
       if (response.ok && result.success) {
-        orderStatus.textContent = 'Tack för din beställning! Vi hör av oss inom kort med betalningsinstruktioner.';
-        orderStatus.classList.add('success');
+        const buyerName = orderForm.elements['name'].value.trim();
+        const buyerEmail = orderForm.elements['email'].value.trim();
+        showConfirmView(buyerName, buyerEmail);
         cart = [];
         saveCart();
         renderCart();
         orderForm.reset();
-        setTimeout(function(){
-          closeCart();
-          showCartView();
-          orderStatus.textContent = '';
-          orderStatus.className = 'form-status';
-        }, 2600);
+        orderStatus.textContent = '';
+        orderStatus.className = 'form-status';
       } else {
         throw new Error(result.message || 'Något gick fel.');
       }
@@ -1421,7 +1453,7 @@
       launched = true;
       if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
       headline.textContent = 'Är öppen nu';
-      body.textContent = 'Nu kan du förbeställa dina favoriter innan de tar slut.';
+      body.textContent = 'Korken är dragen! Nu kan du förbeställa grytunderlägg, coasters och charkbrickor, handgjorda av vinkorkar som annars hade slängts.';
       timer.hidden = true;
       cta.hidden = false;
     }
