@@ -336,6 +336,16 @@
     .step-rule{ display:none; }
   }
 
+  /* --- För restauranger --- */
+  .partner{ background:var(--cork-light); padding:72px 0; }
+  .partner-inner{ display:flex; justify-content:space-between; align-items:center; gap:48px; }
+  .partner-text{ max-width:620px; }
+  .partner-text .kicker{ margin-bottom:14px; }
+  .partner-text h2{ font-size:clamp(1.9rem, 3.6vw, 3.1rem); line-height:1.1; letter-spacing:-0.015em; margin:0 0 12px; }
+  .partner-text p{ margin:0; color:var(--ink); font-size:1.1rem; line-height:1.65; }
+  .partner .btn{ flex-shrink:0; }
+  @media(max-width:760px){ .partner{ padding:56px 0; } .partner-inner{ flex-direction:column; align-items:flex-start; gap:26px; } }
+
   /* --- Vanliga frågor --- */
   .faq{ display:flex; gap:72px; }
   .faq-head{ flex:5 1 0; min-width:0; }
@@ -848,6 +858,17 @@
         <div class="step"><div class="step-num">3</div><div class="step-rule"></div><h3>Vi formar och limmar</h3><p>Vi skär och limmar ihop korkarna för hand till nya produkter.</p></div>
         <div class="step"><div class="step-num">4</div><div class="step-rule"></div><h3>Kvalitetskontroll</h3><p>Varje produkt kontrolleras noggrant innan den är redo att användas.</p></div>
       </div>
+    </div>
+  </section>
+  <!-- FÖR RESTAURANGER -->
+  <section id="samarbete" class="partner">
+    <div class="wrap partner-inner">
+      <div class="partner-text">
+        <div class="kicker">För restauranger och vinbarer</div>
+        <h2>Har du korkar över?</h2>
+        <p>Vi tar gärna emot vinkorkar från restauranger och vinbarer. Hör av dig så berättar vi hur det fungerar.</p>
+      </div>
+      <a href="mailto:nordlykork@gmail.com?subject=Vi%20har%20korkar%20till%20er" class="btn btn-primary">Mejla oss</a>
     </div>
   </section>
   <!-- VANLIGA FRÅGOR -->
