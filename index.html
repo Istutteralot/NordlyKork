@@ -461,6 +461,10 @@
     border-radius:var(--radius); padding:14px 16px; margin-bottom:22px;
     font-size:14px;
   }
+  .ship-progress{ height:6px; border-radius:999px; background:var(--line); overflow:hidden; margin:2px 0 8px; }
+  .ship-progress-bar{ height:100%; width:0; background:var(--cork); border-radius:999px; transition:width .3s ease; }
+  .ship-progress.done .ship-progress-bar{ background:var(--wine); }
+  @media (prefers-reduced-motion:reduce){ .ship-progress-bar{ transition:none; } }
   .order-summary-item{ display:flex; justify-content:space-between; gap:10px; padding:5px 0; }
   .order-summary-item + .order-summary-item{ border-top:1px dashed var(--line); }
   .order-summary-item span:first-child{ color:var(--ink); }
@@ -663,6 +667,9 @@
       <ul class="cart-items" id="cartItems"></ul>
 
       <div class="cart-drawer-foot" id="cartFoot" hidden>
+        <div class="order-summary-item" id="cartShipping"></div>
+        <div class="ship-progress" id="shipProgress" role="progressbar" aria-valuemin="0" aria-valuemax="3" aria-label="Framsteg mot fri frakt"><div class="ship-progress-bar" id="shipProgressBar"></div></div>
+        <p class="cart-note" id="cartShippingHint"></p>
         <div class="cart-total" id="cartTotal"></div>
         <p class="cart-note" id="cartNoteChark" hidden>Pris för charkbrickor är inte satt än — vi mejlar det tillsammans med betalningsinstruktioner.</p>
         <p class="cart-note">Vi bekräftar din beställning och skickar betalningsinstruktioner via e-post.</p>
@@ -881,7 +888,7 @@
       <div class="faq-list">
         <details>
           <summary>Hur får jag min beställning?</summary>
-          <p>Vi skickar den med posten. Vi mejlar dig om frakten när vi bekräftar din beställning.</p>
+          <p>Vi skickar den med posten. Frakten kostar 59 kr, men beställer du 3 eller fler varor är den gratis.</p>
         </details>
         <details>
           <summary>Hur betalar jag?</summary>
@@ -1061,6 +1068,18 @@
 
   function formatSEK(n){ return n + ' kr'; }
 
+  // Frakt: fri från 3 st, annars fast avgift
+  const SHIPPING_FEE = 59;
+  const FREE_SHIPPING_MIN_QTY = 3;
+  function shippingFor(count){ return count >= FREE_SHIPPING_MIN_QTY ? 0 : SHIPPING_FEE; }
+  function shippingLabel(fee){ return fee === 0 ? 'Fri frakt' : formatSEK(fee); }
+  function shippingHint(count){
+    const missing = FREE_SHIPPING_MIN_QTY - count;
+    return missing > 0
+      ? 'Lägg till ' + missing + ' st till för fri frakt — fri frakt från ' + FREE_SHIPPING_MIN_QTY + ' st.'
+      : 'Du får fri frakt.';
+  }
+
   function getItemPrice(productKey, variant){
     const product = PRODUCTS[productKey];
     if (!product) return null;
@@ -1132,6 +1151,8 @@
   const orderSummaryEl = document.getElementById('orderSummary');
   const orderSummaryField = document.getElementById('orderSummaryField');
   const cartTotalEl = document.getElementById('cartTotal');
+  const cartShippingEl = document.getElementById('cartShipping');
+  const cartShippingHintEl = document.getElementById('cartShippingHint');
   const cartNoteCharkEl = document.getElementById('cartNoteChark');
   const orderSummaryTotalEl = document.getElementById('orderSummaryTotal');
 
@@ -1220,6 +1241,21 @@
       const price = getItemPrice(item.productKey, item.variant);
       if (price != null) { cartTotal += price * item.qty; } else { cartHasUnknownPrice = true; }
     });
+    const cartShip = shippingFor(count);
+    cartTotal += cartShip;
+    cartShippingEl.innerHTML = '';
+    const cartShipLabel = document.createElement('span');
+    cartShipLabel.textContent = 'Frakt';
+    const cartShipValue = document.createElement('span');
+    cartShipValue.textContent = shippingLabel(cartShip);
+    cartShippingEl.appendChild(cartShipLabel);
+    cartShippingEl.appendChild(cartShipValue);
+    cartShippingHintEl.textContent = shippingHint(count);
+    const shipProgressEl = document.getElementById('shipProgress');
+    const shipDone = count >= FREE_SHIPPING_MIN_QTY;
+    shipProgressEl.classList.toggle('done', shipDone);
+    shipProgressEl.setAttribute('aria-valuenow', String(Math.min(count, FREE_SHIPPING_MIN_QTY)));
+    document.getElementById('shipProgressBar').style.width = Math.min(100, count / FREE_SHIPPING_MIN_QTY * 100) + '%';
     cartTotalEl.innerHTML = '';
     const cartTotalLabel = document.createElement('span');
     cartTotalLabel.textContent = 'Totalt';
@@ -1244,6 +1280,9 @@
       hasUnknownPrice = true;
       return base + ' — pris meddelas separat';
     });
+    const ship = shippingFor(cartTotalCount());
+    total += ship;
+    lines.push('Frakt: ' + shippingLabel(ship));
     lines.push('');
     lines.push('Totalt: ' + formatSEK(total) + (hasUnknownPrice ? ' + pris för charkbrickor' : ''));
     return lines.join('\n');
@@ -1271,6 +1310,17 @@
       row.appendChild(priceEl);
       orderSummaryEl.appendChild(row);
     });
+    const summaryShip = shippingFor(cartTotalCount());
+    summaryTotal += summaryShip;
+    const shipRow = document.createElement('div');
+    shipRow.className = 'order-summary-item';
+    const shipLabel = document.createElement('span');
+    shipLabel.textContent = 'Frakt';
+    const shipValue = document.createElement('span');
+    shipValue.textContent = shippingLabel(summaryShip);
+    shipRow.appendChild(shipLabel);
+    shipRow.appendChild(shipValue);
+    orderSummaryEl.appendChild(shipRow);
     orderSummaryTotalEl.innerHTML = '';
     const summaryTotalLabel = document.createElement('span');
     summaryTotalLabel.textContent = 'Totalt';
