@@ -708,6 +708,18 @@
           <input type="tel" id="orderPhone" name="phone" placeholder="07X-XXX XX XX">
         </div>
         <div class="field">
+          <label for="orderStreet">Gatuadress</label>
+          <input type="text" id="orderStreet" name="street" placeholder="Gatunamn 12" required>
+        </div>
+        <div class="field">
+          <label for="orderPostal">Postnummer</label>
+          <input type="text" id="orderPostal" name="postal_code" placeholder="931 31" inputmode="numeric" required>
+        </div>
+        <div class="field">
+          <label for="orderCity">Ort</label>
+          <input type="text" id="orderCity" name="city" placeholder="Skellefteå" required>
+        </div>
+        <div class="field">
           <label for="orderMessage">Meddelande (valfritt)</label>
           <textarea id="orderMessage" name="message" placeholder="T.ex. leveransönskemål eller övriga frågor..."></textarea>
         </div>
@@ -1011,6 +1023,49 @@
   </div>
 </footer>
 
+<!--
+  Koppling till orderpanelen (Supabase). Panelen själv körs separat, på
+  admin.nordlykork.se, se "admin nordlykork/" lokalt (git-ignorerad).
+  Så länge SUPABASE_URL/SUPABASE_ANON_KEY nedan är kvar som platshållare gör
+  detta ingenting — sidan och beställningsflödet fungerar precis som innan,
+  ordern skickas bara till Web3Forms som tidigare. Båda värdena är publika
+  och OK att checka in när de fylls i; skyddet sker i databasens Row Level
+  Security-policyer (se admin nordlykork/schema.sql), inte av att nyckeln
+  hålls hemlig.
+-->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  (function(){
+    var SUPABASE_URL = 'https://hmcapfihhctfpizeygxr.supabase.co';
+    var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtY2FwZmloaGN0ZnBpemV5Z3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MTQ3NDMsImV4cCI6MjEwNjE5MDc0M30.T50Y64-6_YWL_C4YPAM72qSsp6Hi3dgKPYTRFd0VoUo';
+    var CONFIGURED = SUPABASE_URL.indexOf('http') === 0 &&
+      SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.indexOf('DIN_') !== 0;
+    var sb = (CONFIGURED && window.supabase && typeof window.supabase.createClient === 'function')
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+    // order: { name, email, phone, street, postal_code, city, message, items, shipping_fee }
+    // items: [{ name, variant, qty, price }] — price kan vara null (t.ex. charkbrickor).
+    function recordOrder(order){
+      if (!sb) return Promise.resolve({ skipped: true });
+      var total = order.items.reduce(function(sum, i){ return sum + (i.price || 0) * i.qty; }, 0) + order.shipping_fee;
+      return sb.from('orders').insert({
+        name: order.name,
+        email: order.email,
+        phone: order.phone || null,
+        street: order.street,
+        postal_code: order.postal_code,
+        city: order.city,
+        message: order.message || null,
+        items: order.items,
+        shipping_fee: order.shipping_fee,
+        total: total
+      }).then(function(res){ if (res.error) throw res.error; return res; });
+    }
+
+    window.NordlyAdmin = { isConfigured: function(){ return CONFIGURED; }, recordOrder: recordOrder };
+  })();
+</script>
+
 <script>
   const toggle = document.getElementById('menuToggle');
   const links = document.getElementById('navLinks');
@@ -1285,6 +1340,10 @@
     lines.push('Frakt: ' + shippingLabel(ship));
     lines.push('');
     lines.push('Totalt: ' + formatSEK(total) + (hasUnknownPrice ? ' + pris för charkbrickor' : ''));
+    lines.push('');
+    lines.push('Leveransadress:');
+    lines.push(orderForm.elements['street'].value.trim());
+    lines.push(orderForm.elements['postal_code'].value.trim() + ' ' + orderForm.elements['city'].value.trim());
     return lines.join('\n');
   }
 
@@ -1481,6 +1540,25 @@
       if (response.ok && result.success) {
         const buyerName = orderForm.elements['name'].value.trim();
         const buyerEmail = orderForm.elements['email'].value.trim();
+        // Sparar samma beställning i orderpanelen (Supabase). Görs efter att
+        // Web3Forms-mejlet redan bekräftats så att en ordertavla som inte är
+        // uppsatt än aldrig kan blockera själva beställningen — se admin
+        // nordlykork/ lokalt. Ett fel här visas aldrig för kunden.
+        if (window.NordlyAdmin && window.NordlyAdmin.isConfigured()) {
+          window.NordlyAdmin.recordOrder({
+            name: buyerName,
+            email: buyerEmail,
+            phone: orderForm.elements['phone'].value.trim(),
+            street: orderForm.elements['street'].value.trim(),
+            postal_code: orderForm.elements['postal_code'].value.trim(),
+            city: orderForm.elements['city'].value.trim(),
+            message: orderForm.elements['message'].value.trim(),
+            items: cart.map(function(i){
+              return { name: i.name, variant: i.variant, qty: i.qty, price: getItemPrice(i.productKey, i.variant) };
+            }),
+            shipping_fee: shippingFor(cartTotalCount())
+          }).catch(function(err){ console.warn('Kunde inte spara ordern i orderpanelen:', err); });
+        }
         showConfirmView(buyerName, buyerEmail);
         cart = [];
         saveCart();
